@@ -1,6 +1,6 @@
 # Onyapo 🌿
 
-*Onyapo* is the project’s chosen Twi shorthand for “you get muscles.”
+*Onyapo* is Twi shorthand for “you get muscles.”
 
 **A responsive, GitHub-ready fitness website sourced from two anatomical Excel workbooks.** Green-and-blue styling; home/gym workout rotation; progress tracking; email-confirmed accounts; interactive muscle atlas; searchable library; customizable, non-gendered avatar; friend codes and uplifting messages; incremental video support.
 
