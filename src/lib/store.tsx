@@ -84,7 +84,9 @@ export function AppProvider({children}:{children:React.ReactNode}){
  };
  const saveSession=async(session:Session)=>{
   if(supabase&&!demo&&profile){
-   const task=cloudWriteQueue.current.then(async()=>{const {error}=await supabase.from('workouts').upsert({id:session.id,user_id:profile.id,setting:session.setting,plan:session,created_at:session.createdAt});if(error)throw error;});
+   // Preserve the non-null client across the queued async callback.
+   const client=supabase;
+   const task=cloudWriteQueue.current.then(async()=>{const {error}=await client.from('workouts').upsert({id:session.id,user_id:profile.id,setting:session.setting,plan:session,created_at:session.createdAt});if(error)throw error;});
    cloudWriteQueue.current=task.catch(()=>{});
    await task;
   }
