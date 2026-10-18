@@ -1,0 +1,20 @@
+import exerciseJson from '../data/exercises.json';
+import muscleJson from '../data/muscles.json';
+import videoJson from '../data/videos.json';
+import type {Exercise,Muscle} from './types';
+export const exercises=exerciseJson as Exercise[];
+export const muscles=muscleJson as Muscle[];
+export const exerciseById=new Map(exercises.map(x=>[x.id,x]));
+export const muscleByName=new Map(muscles.map(x=>[x.name,x]));
+export type VideoEntry={src:string;caption?:string;poster?:string};
+export const videos=videoJson as Record<string,VideoEntry>;
+export const modeName=(setting:string)=>setting==='home'?'At home':'At the gym';
+export const isStretch=(e:Exercise)=>['Active stretch','Passive stretch','Mobility','Soft-tissue mobility'].includes(e.category);
+export const isHoldStretch=(e:Exercise)=>e.category==='Passive stretch';
+export const isIsolation=(e:Exercise)=>e.category==='Isolation strength';
+export const isStrength=(e:Exercise)=>['Compound strength','Band strength','Isolation strength','Isometric strength','Eccentric strength','Motor control','Functional activation'].includes(e.category);
+export const isHoldStrength=(e:Exercise)=>e.category==='Isometric strength';
+export const isBand=(e:Exercise)=>e.category==='Band strength'|| /band|elastic|miniband/i.test(e.equipment);
+export const isWeight=(e:Exercise)=>e.setting==='gym' && !isBand(e);
+export function prescription(e:Exercise,phase:string){if(phase!=='strength')return isHoldStretch(e)?'15 slow breaths':'5 controlled repetitions';return isHoldStrength(e)?'3 sets × 30 seconds':'3 sets × 6 repetitions';}
+export const regionGroup=(region:string)=>({'Shoulder & Chest':'Chest / shoulder','Arm':'Arms','Hand & Fingers':'Hands / wrists','Back & Spine':'Back','Neck':'Neck','Thigh & Knee':'Thigh / knee','Leg & Ankle':'Calves / ankles','Hip & Gluteal':'Hips / glutes','Abdomen & Core':'Core','Pelvis & Perineum':'Pelvic floor','Thorax & Breathing':'Breathing','Head & Face':'Face','Eye & Ear':'Eyes / ears','Pharynx & Larynx':'Throat'} as Record<string,string>)[region] || region;
