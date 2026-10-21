@@ -1,14 +1,14 @@
 import React,{createContext,useCallback,useContext,useEffect,useState,useRef} from 'react';
-import type {Profile,Stats,Session,Friend,FriendRequest,Encouragement,AvatarConfig} from './types';
+import type {Profile,Stats,Session,Friend,FriendRequest,Encouragement,AvatarConfig,FriendActivity} from './types';
 import {cloudEnabled,supabase} from './supabase';
 import {DEFAULT_AVATAR,normalizeAvatar} from './avatar';
 export {DEFAULT_AVATAR} from './avatar';
 
-const makeProfile=():Profile=>({id:'demo',username:'trailblazer',friend_code:'DEMO-2026',bio:'One step stronger every day.',avatar:DEFAULT_AVATAR,tutorial_done:false});
+const makeProfile=():Profile=>({id:'demo',username:'trailblazer',friend_code:'DEMO-2026',bio:'One step stronger every day.',avatar:DEFAULT_AVATAR,tutorial_done:false,share_activity:false});
 // Read demo saves from previous releases without deleting them; all new writes use Onyapo keys.
 const localLoad=<T,>(key:string,fallback:T):T=>{try{const s=localStorage.getItem('onyapo_'+key)??localStorage.getItem('vm_'+key);return s?JSON.parse(s) as T:fallback}catch{return fallback}};
 const localSave=(key:string,val:unknown)=>localStorage.setItem('onyapo_'+key,JSON.stringify(val));
-const normalizeProfile=(profile:Profile):Profile=>({...profile,avatar:normalizeAvatar(profile.avatar)});
+const normalizeProfile=(profile:Profile):Profile=>({...profile,share_activity:profile.share_activity??false,avatar:normalizeAvatar(profile.avatar)});
 const errorMessage=(error:unknown)=>error instanceof Error?error.message:String(error);
 type Context={
  profile:Profile|null;stats:Stats;sessions:Session[];ready:boolean;demo:boolean;notice:string;
@@ -16,7 +16,7 @@ type Context={
  signIn:(email:string,password:string)=>Promise<void>;signOut:()=>Promise<void>;startDemo:()=>void;
  updateProfile:(updates:Partial<Profile>)=>Promise<void>;saveSession:(session:Session)=>Promise<void>;
  finishSession:(session:Session)=>Promise<void>;searchPeople:(query:string)=>Promise<Friend[]>;
- requests:FriendRequest[];friends:Friend[];requestPeople:Record<string,Friend>;encouragements:Encouragement[];
+ requests:FriendRequest[];friends:Friend[];requestPeople:Record<string,Friend>;encouragements:Encouragement[];friendActivity:FriendActivity[];
  sendRequest:(userId:string)=>Promise<void>;respondRequest:(id:string,accept:boolean)=>Promise<void>;
  sendMessage:(toId:string,template:string,summary?:string)=>Promise<void>;
  refreshSocial:()=>Promise<void>;clearNotice:()=>void;
@@ -26,7 +26,7 @@ export function useApp(){const v=useContext(C);if(!v)throw new Error('Provider m
 export function AppProvider({children}:{children:React.ReactNode}){
  const [profile,setProfile]=useState<Profile|null>(null),[stats,setStats]=useState<Stats>({xp:0,completed_workouts:0}),[sessions,setSessions]=useState<Session[]>([]);
  const [ready,setReady]=useState(false),[notice,setNotice]=useState(''),[demo,setDemo]=useState(false);
- const [friends,setFriends]=useState<Friend[]>([]),[requests,setRequests]=useState<FriendRequest[]>([]),[encouragements,setEncouragements]=useState<Encouragement[]>([]),[requestPeople,setRequestPeople]=useState<Record<string,Friend>>({});
+ const [friendActivity,setFriendActivity]=useState<FriendActivity[]>([]),[friends,setFriends]=useState<Friend[]>([]),[requests,setRequests]=useState<FriendRequest[]>([]),[encouragements,setEncouragements]=useState<Encouragement[]>([]),[requestPeople,setRequestPeople]=useState<Record<string,Friend>>({});
  const cloudWriteQueue=useRef<Promise<unknown>>(Promise.resolve());
  const hydrate=useCallback(async(id:string)=>{
   if(!supabase)return;
@@ -48,6 +48,9 @@ export function AppProvider({children}:{children:React.ReactNode}){
   ]);
   const all=(q.data||[]) as FriendRequest[];
   setRequests(all);setEncouragements((m.data||[]) as Encouragement[]);
+  // Migration 0002 adds this privacy-gated RPC. Until then, show an empty feed.
+  const activity=await supabase.rpc('friend_activity_feed',{p_limit:30});
+  if(!activity.error)setFriendActivity((activity.data||[]) as FriendActivity[]);
   const ids=all.filter(r=>r.status==='accepted').map(r=>r.from_user===profile.id?r.to_user:r.from_user);
   const allIds=[...new Set([...ids,...all.map(r=>r.from_user)])].filter(id=>id!==profile.id);
   if(allIds.length){const response=await supabase.from('profiles').select('id,username,friend_code,bio,avatar').in('id',allIds);const people=(response.data||[]) as Friend[];setFriends(people.filter(x=>ids.includes(x.id)));setRequestPeople(Object.fromEntries(people.map(x=>[x.id,x])))}else{setFriends([]);setRequestPeople({})}
@@ -62,7 +65,7 @@ export function AppProvider({children}:{children:React.ReactNode}){
   const sub=supabase.auth.onAuthStateChange((_,s)=>{
    if(!alive)return;
    if(s?.user)window.setTimeout(()=>hydrate(s.user.id).catch(e=>setNotice(errorMessage(e))),50);
-   else {setProfile(null);setSessions([]);setStats({xp:0,completed_workouts:0})}
+   else {setProfile(null);setSessions([]);setFriends([]);setRequests([]);setEncouragements([]);setFriendActivity([]);setStats({xp:0,completed_workouts:0})}
   });
   return()=>{alive=false;sub.data.subscription.unsubscribe()};
  },[hydrate]);
@@ -75,7 +78,7 @@ export function AppProvider({children}:{children:React.ReactNode}){
  };
  const signIn=async(email:string,password:string)=>{if(!supabase)throw Error('Accounts need Supabase configuration');const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;};
  const startDemo=()=>{const p=normalizeProfile(localLoad('profile',makeProfile()));setDemo(true);localSave('demoActive',true);setProfile(p);setStats(localLoad('stats',{xp:0,completed_workouts:0}));setSessions(localLoad('sessions',[]));};
- const signOut=async()=>{if(supabase){await supabase.auth.signOut()}else{localSave('demoActive',false);setDemo(false);setProfile(null)}};
+ const signOut=async()=>{if(demo){localSave('demoActive',false);setDemo(false);setProfile(null);setSessions([]);setFriends([]);setRequests([]);setEncouragements([]);setFriendActivity([]);return;}if(supabase){await supabase.auth.signOut()}else{localSave('demoActive',false);setProfile(null)}};
  const updateProfile=async(updates:Partial<Profile>)=>{
   if(!profile)return;
   const updated=normalizeProfile({...profile,...updates});
@@ -110,5 +113,5 @@ export function AppProvider({children}:{children:React.ReactNode}){
  const sendRequest=async(toId:string)=>{if(!supabase||!profile)throw Error('Friend requests require a verified account');const {error}=await supabase.from('friend_requests').insert({from_user:profile.id,to_user:toId});if(error)throw error;await refreshSocial()};
  const respondRequest=async(id:string,accept:boolean)=>{if(!supabase)throw Error('Not signed in');const {error}=await supabase.from('friend_requests').update({status:accept?'accepted':'declined'}).eq('id',id);if(error)throw error;await refreshSocial()};
  const sendMessage=async(toId:string,template_key:string,workout_summary?:string)=>{if(!supabase||!profile)throw Error('Messages require a verified account');const {error}=await supabase.from('encouragements').insert({from_user:profile.id,to_user:toId,template_key,workout_summary:workout_summary||null});if(error)throw error;setNotice('Encouragement sent!')};
- return <C.Provider value={{profile,stats,sessions,ready,demo,notice,signUp,signIn,signOut,startDemo,updateProfile,saveSession,finishSession,searchPeople,requests,friends,requestPeople,encouragements,sendRequest,respondRequest,sendMessage,refreshSocial,clearNotice:()=>setNotice('')}}>{children}</C.Provider>;
+ return <C.Provider value={{profile,stats,sessions,ready,demo,notice,signUp,signIn,signOut,startDemo,updateProfile,saveSession,finishSession,searchPeople,requests,friends,requestPeople,encouragements,friendActivity,sendRequest,respondRequest,sendMessage,refreshSocial,clearNotice:()=>setNotice('')}}>{children}</C.Provider>;
 }

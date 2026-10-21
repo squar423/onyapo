@@ -1,3 +1,17 @@
+# Onyapo 1.1 (October 20, 2026)
+
+- Preserved all original 376 exercises, 349 muscle records, video registry, XP and workout history formats.
+- Clearer Supabase signup configuration notice and support for Vercel `VITE_SUPABASE_PUBLISHABLE_KEY`.
+- Redesigned original vector portraits with detailed natural hairstyles, facial hair, face shapes, and accessories.
+- Anatomy-position anterior/posterior muscle-region figure without cartoon face.
+- Persistent workout Tutorial page and expanded onboarding instructions.
+- Second-workout-per-day recovery warning with explicit override.
+- Opt-in accepted-friend activity feed (migration 0002) that never exposes set-level resistance records.
+- `src/config/siteCopy.ts` to streamline quick content edits.
+- Demo signout correction when cloud credentials exist; local-day recovery tests.
+
+**Deploy safely:** run `supabase/migrations/0002_friend_activity.sql` in existing Supabase project BEFORE pushing frontend update. See `ONYAPO_UPDATE_GUIDE.md`.
+
 # Onyapo update — October 2026
 
 ## Changes
