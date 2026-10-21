@@ -36,3 +36,28 @@ if (urlOK && keyOK) {
 } else {
   console.warn('[Onyapo auth HTML] Public auth config not embedded; offline demo only in this non-production build.');
 }
+
+// In v1.2.3, the browser login page must display auth-1.2.3. Prior releases
+// accidentally updated Vite's HTML injection without updating the actual
+// authentication module. Prevent another successful build with that mismatch.
+const assetsDir = path.join(__dirname, '..', 'dist', 'assets');
+function jsFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, {withFileTypes:true}).flatMap(entry => {
+    const p = path.join(dir, entry.name);
+    return entry.isDirectory() ? jsFiles(p) : entry.isFile() && p.endsWith('.js') ? [p] : [];
+  });
+}
+const bundles = jsFiles(assetsDir);
+const hasUpdatedAuth = bundles.some(file =>
+  fs.readFileSync(file, 'utf8').includes('auth-1.2.3')
+);
+if (hasUpdatedAuth) {
+  console.log('[Onyapo auth bundle] Verified: browser JS contains auth-1.2.3.');
+} else if (production) {
+  console.error('[Onyapo auth bundle] Production build BLOCKED: browser JS lacks auth-1.2.3.');
+  console.error('[Onyapo auth bundle] Replace src/lib/supabase.ts with the updated version, then commit/push all changes.');
+  process.exit(1);
+} else {
+  console.warn('[Onyapo auth bundle] Browser JS lacks auth-1.2.3; check which version is being built.');
+}
