@@ -5,11 +5,18 @@ import {createClient, type SupabaseClient} from '@supabase/supabase-js';
  * Vercel build logs already confirmed valid VITE_SUPABASE_URL and
  * VITE_SUPABASE_ANON_KEY in the production build.
  *
- * Read Vite's standard import.meta.env values FIRST (the supported Vite way).
- * Keep the older vite.config.ts define-injection method as a fallback so
- * previously configured integrations continue working.
+ * The production build inserts two meta tags in index.html using values
+ * verified by vite.config.ts. Read those tags FIRST, then fall back to Vite's
+ * import.meta.env and the legacy define replacements.
  * Never read or expose Supabase service-role or secret keys.
  */
+function publicMeta(name:string):string {
+  if (typeof document === 'undefined') return '';
+  return document.querySelector(`meta[name="${name}"]`)?.getAttribute('content')?.trim() || '';
+}
+const htmlUrl = publicMeta('onyapo-public-supabase-url');
+const htmlKey = publicMeta('onyapo-public-supabase-key');
+
 const viteUrl = String(import.meta.env.VITE_SUPABASE_URL || '').trim();
 const viteAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 const vitePublishableKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '').trim();
@@ -29,10 +36,12 @@ const acceptableKey = (input:string) => Boolean(input)
 // Prefer a valid source over the first nonempty value, so a stale placeholder
 // from one source cannot hide a correctly configured second source.
 const urls = [
+  {name:'Verified HTML public config',value:htmlUrl},
   {name:'Vite public environment',value:viteUrl},
   {name:'Build injection',value:fallbackUrl},
 ];
 const keys = [
+  {name:'Verified HTML public config',value:htmlKey},
   {name:'Vite anon key',value:viteAnonKey},
   {name:'Vite publishable key',value:vitePublishableKey},
   {name:'Build injection',value:fallbackKey},
@@ -43,7 +52,7 @@ const url = chosenUrl?.value || '';
 const key = chosenKey?.value || '';
 
 export const authBuildStatus = {
-  version:'auth-1.2.2',
+  version:'auth-1.2.3',
   urlPresent:urls.some(item=>Boolean(item.value)),
   keyPresent:keys.some(item=>Boolean(item.value)),
   urlValid:Boolean(chosenUrl),
