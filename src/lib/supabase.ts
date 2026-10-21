@@ -1,13 +1,58 @@
 import {createClient, type SupabaseClient} from '@supabase/supabase-js';
 
-// Injected at build time by vite.config.ts. PUBLIC anon/publishable key only.
-// A Vercel deployment must be rebuilt after changing environment variables.
-const url=__ONYAPO_PUBLIC_SUPABASE_URL__.trim();
-const key=__ONYAPO_PUBLIC_SUPABASE_KEY__.trim();
-export const cloudEnabled=Boolean(
-  /^https:\/\/[^\s/]+\.supabase\.co\/?$/i.test(url) &&
-  key && !key.includes('YOUR_') && !key.startsWith('sb_secret_')
-);
-export const supabase:SupabaseClient|null=cloudEnabled
+/**
+ * Supabase public browser configuration.
+ * Vercel build logs already confirmed valid VITE_SUPABASE_URL and
+ * VITE_SUPABASE_ANON_KEY in the production build.
+ *
+ * Read Vite's standard import.meta.env values FIRST (the supported Vite way).
+ * Keep the older vite.config.ts define-injection method as a fallback so
+ * previously configured integrations continue working.
+ * Never read or expose Supabase service-role or secret keys.
+ */
+const viteUrl = String(import.meta.env.VITE_SUPABASE_URL || '').trim();
+const viteAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const vitePublishableKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '').trim();
+
+// Vite replaces these constants at build time. The typeof checks also let
+// browsers report a useful status if an old build omitted the injected config.
+const fallbackUrl = typeof __ONYAPO_PUBLIC_SUPABASE_URL__ === 'string'
+  ? __ONYAPO_PUBLIC_SUPABASE_URL__.trim() : '';
+const fallbackKey = typeof __ONYAPO_PUBLIC_SUPABASE_KEY__ === 'string'
+  ? __ONYAPO_PUBLIC_SUPABASE_KEY__.trim() : '';
+
+const acceptableUrl = (input:string) => /^https:\/\/[^\s/]+\.supabase\.co\/?$/i.test(input);
+const acceptableKey = (input:string) => Boolean(input)
+  && !/your_|replace_me|paste_key_here/i.test(input)
+  && !/sb_secret_|service_role/i.test(input);
+
+// Prefer a valid source over the first nonempty value, so a stale placeholder
+// from one source cannot hide a correctly configured second source.
+const urls = [
+  {name:'Vite public environment',value:viteUrl},
+  {name:'Build injection',value:fallbackUrl},
+];
+const keys = [
+  {name:'Vite anon key',value:viteAnonKey},
+  {name:'Vite publishable key',value:vitePublishableKey},
+  {name:'Build injection',value:fallbackKey},
+];
+const chosenUrl = urls.find(item=>acceptableUrl(item.value));
+const chosenKey = keys.find(item=>acceptableKey(item.value));
+const url = chosenUrl?.value || '';
+const key = chosenKey?.value || '';
+
+export const authBuildStatus = {
+  version:'auth-1.2.2',
+  urlPresent:urls.some(item=>Boolean(item.value)),
+  keyPresent:keys.some(item=>Boolean(item.value)),
+  urlValid:Boolean(chosenUrl),
+  keyValid:Boolean(chosenKey),
+  urlSource:chosenUrl?.name || 'not detected',
+  keySource:chosenKey?.name || 'not detected',
+} as const;
+
+export const cloudEnabled = Boolean(chosenUrl && chosenKey);
+export const supabase:SupabaseClient|null = cloudEnabled
   ? createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})
   : null;
