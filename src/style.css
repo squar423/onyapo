@@ -50,3 +50,14 @@
 @media(max-width:900px){.anatomical-figure svg{height:345px}}
 @media(max-width:680px){.guide-card-grid{grid-template-columns:1fr}.guide-lead{padding:18px;gap:12px}.guide-lead h2{font-size:20px}.anatomical-figure svg{height:360px}.friend-activity-item{align-items:flex-start}.activity-status{display:none}}
 @media(max-width:390px){.anatomical-figure svg{height:320px}}
+
+/* 1.2: uncomplicated illustrated avatar presets, keyboard and touch friendly. */
+.avatar-style-picker{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:7px 0 17px}
+.avatar-style-choice{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:7px;border:1.5px solid #d3e5df;background:#fcfffd;border-radius:13px;padding:10px 5px 9px;color:#345d59;cursor:pointer;min-width:0;transition:border-color .15s,box-shadow .15s,background .15s;font-family:inherit}
+.avatar-style-choice .avatar-svg{width:63px;height:63px;max-width:100%}
+.avatar-style-choice span{font-size:10px;line-height:1.2;font-weight:700;text-align:center}
+.avatar-style-choice.chosen{background:#e4f5ee;border-color:#168974;box-shadow:0 0 0 2px #42a88c44}
+.avatar-style-choice:hover{border-color:#168974;background:#f1faf6}
+.avatar-style-choice:focus-visible{outline:3px solid #087eac;outline-offset:3px}
+@media(max-width:1100px){.avatar-style-picker{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:680px){.avatar-style-picker{grid-template-columns:repeat(3,minmax(0,1fr))}}
