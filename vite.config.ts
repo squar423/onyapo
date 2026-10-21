@@ -23,19 +23,36 @@ export default defineConfig(({mode})=>{
   const selectedKeyName=keyNames.find(name=>Boolean(vars[name])) || '(not found)';
   const urlValid=/^https:\/\/[^\s/]+\.supabase\.co\/?$/i.test(publicUrl.trim());
   const keyPresent=Boolean(publicKey.trim());
-  const keyAllowed=keyPresent && !publicKey.includes('YOUR_') && !publicKey.trim().startsWith('sb_secret_');
+  const keyAllowed=keyPresent && !/your_|replace_me|paste_key_here|service_role|sb_secret_/i.test(publicKey);
   if (process.env.VERCEL) {
     console.info('[Onyapo auth diagnostics] Deployment environment:',process.env.VERCEL_ENV || '(unknown)');
     console.info('[Onyapo auth diagnostics] Supabase URL variable:',selectedUrlName,'; standard URL valid:',urlValid);
     console.info('[Onyapo auth diagnostics] Supabase public-key variable:',selectedKeyName,'; public key passes basic checks:',keyAllowed);
     console.info('[Onyapo auth diagnostics] Credentials are', urlValid && keyAllowed ? 'available to build (not yet tested with Supabase)' : 'missing/invalid for this build');
   }
+  // Vite 6 did not reliably expose the values to Onyapo's browser bundle
+  // despite confirming that they were available to this build. Embed the PUBLIC
+  // URL and publishable/anon key in index.html as a separate, verifiable path.
+  // These are client-public values; never embed secret or service-role keys.
+  const browserUrl=urlValid ? publicUrl.trim() : '';
+  const browserKey=keyAllowed ? publicKey.trim() : '';
   return {
-    plugins:[react()],
+    plugins:[
+      react(),
+      {
+        name:'onyapo-public-auth-html',
+        transformIndexHtml(){
+          return [
+            {tag:'meta',attrs:{name:'onyapo-public-supabase-url',content:browserUrl},injectTo:'head' as const},
+            {tag:'meta',attrs:{name:'onyapo-public-supabase-key',content:browserKey},injectTo:'head' as const},
+          ];
+        },
+      },
+    ],
     base:vars.VITE_BASE_PATH || '/',
     define:{
-      __ONYAPO_PUBLIC_SUPABASE_URL__:JSON.stringify(publicUrl),
-      __ONYAPO_PUBLIC_SUPABASE_KEY__:JSON.stringify(publicKey),
+      __ONYAPO_PUBLIC_SUPABASE_URL__:JSON.stringify(browserUrl),
+      __ONYAPO_PUBLIC_SUPABASE_KEY__:JSON.stringify(browserKey),
     },
   };
 });
