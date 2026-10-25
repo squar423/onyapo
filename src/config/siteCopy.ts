@@ -1,7 +1,7 @@
 /** Fast-edit area for headings, menu labels and branding. Deploy via GitHub push. */
 export const siteCopy = {
   brand: 'ONYAPO',
-  brandTagline: 'MOVE YOUR WAY',
+  brandTagline: 'EXERCISE YOUR WAY',
   menu: {
     dashboard: 'Overview',
     workout: 'My workout',
@@ -15,5 +15,5 @@ export const siteCopy = {
   workoutHeading: 'Your workout studio',
   atlasHeading: 'Your muscle atlas',
   libraryHeading: 'Movement library',
-  accentMessage: 'Small steps count.'
+  accentMessage: 'Every step counts.'
 } as const;
